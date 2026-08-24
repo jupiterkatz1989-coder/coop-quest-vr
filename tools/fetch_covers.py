@@ -59,6 +59,10 @@ def run(allow_network:bool=True)->dict:
                 hok=valid(header) or bool(allow_network and fetch(f'https://cdn.akamai.steamstatic.com/steam/apps/{appid}/header.jpg',header))
                 lok=valid(library) or bool(allow_network and fetch(f'https://cdn.akamai.steamstatic.com/steam/apps/{appid}/library_600x900_2x.jpg',library))
                 if not lok:lok=bool(allow_network and fetch(f'https://cdn.akamai.steamstatic.com/steam/apps/{appid}/library_600x900.jpg',library))
+                # Las fichas recientes no publican la ruta clasica; el snapshot ya guarda la URL con hash.
+                if not hok:
+                    declared=g.get('portada_url') or ''
+                    if f'/apps/{appid}/' in declared:hok=bool(allow_network and fetch(declared,header))
                 record['steam_header']|=hok;record['steam_library']|=lok
                 if lok:choices.append(library)
                 elif hok:choices.append(header)
