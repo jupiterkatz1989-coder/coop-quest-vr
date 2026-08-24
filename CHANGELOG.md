@@ -2,9 +2,9 @@
 
 ## 2.0.0 — 2026-08-24
 
-- Descubrimiento reanudable de Steam VR cooperativo mediante categorías oficiales, caché y ritmo limitado.
+- Descubrimiento reanudable de Steam VR cooperativo mediante las categorías oficiales Co-op, Online Co-op, Shared/Split Screen Co-op y LAN Co-op, caché y ritmo limitado.
 - Precios Steam para España con rebaja, fecha y distinción entre fuente comprobada y recotización real; Meta queda marcada como captura histórica.
-- Clasificación standalone / solo PCVR / ambos, filtro VR obligatorio/opcional y filtros de calidad.
+- Clasificación standalone / PCVR / ambos / desconocido, filtros de VR obligatorio, cooperativo online/local y filtros de calidad.
 - Paginación progresiva de 36 tarjetas, carga diferida y portadas oficiales por AppID.
 - Workflow semanal de GitHub Actions con puerta de integridad, informe de cambios y despliegue Pages.
 

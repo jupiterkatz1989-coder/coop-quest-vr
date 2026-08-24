@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Descubre y refresca el catálogo Steam VR cooperativo de forma reanudable.
 
-Solo acepta las categorías oficiales de Steam 9/38/39 (cooperativo) y
+Solo acepta las categorías oficiales de Steam 9/38/39/47 (cooperativo) y
 53/54 (VR opcional/obligatorio). Todas las respuestas se cachean y las
 peticiones se espacian para no castigar la tienda.
 """
@@ -28,7 +28,9 @@ REVIEW_CACHE = CACHE / "reviews"
 GAMES_PATH = ROOT / "src" / "data" / "games.json"
 REPORT_PATH = ROOT / "data" / "steam_refresh_report.json"
 CHANGE_PATH = ROOT / "data" / "steam_changes.json"
-COOP_IDS = {9, 38, 39}
+COOP_IDS = {9, 38, 39, 47}
+ONLINE_COOP_IDS = {9, 38, 47}
+LOCAL_COOP_IDS = {39}
 VR_OPTIONAL_ID = 53
 VR_REQUIRED_ID = 54
 USER_AGENT = "CoopQuestVR-catalog-refresh/1.0 (personal, weekly; contact via GitHub repository)"
@@ -188,7 +190,9 @@ def update_game(game: dict, data: dict, review: dict, appid: int, today: str, de
                 "modo_quest": "streaming_desde_pc", "url": url}
     game["plataformas"] = [p for p in game.get("plataformas", []) if not p.get("tipo", "").startswith("SteamVR")]
     game["plataformas"].append(platform)
-    game.update(steam_appid=appid, steam_vr_modo=vr_mode, vr_modo=vr_mode,
+    vr_required: bool | str = True if VR_REQUIRED_ID in ids else False if VR_OPTIONAL_ID in ids else "desconocido"
+    game.update(steam_appid=appid, steam_vr_modo=vr_mode, vr_modo=vr_mode, vr_obligatorio=vr_required,
+                coop_online=bool(ids & ONLINE_COOP_IDS), coop_local=bool(ids & LOCAL_COOP_IDS),
                 portada_url=data.get("header_image"), consultado_el=today)
     game["generos"] = sorted(set(game.get("generos", [])) | {x["description"] for x in data.get("genres", [])})
     game["coop_categorias_steam"] = [x["description"] for x in data.get("categories", []) if int(x.get("id", -1)) in COOP_IDS]
@@ -207,7 +211,6 @@ def update_game(game: dict, data: dict, review: dict, appid: int, today: str, de
         "rebajado": bool(price.get("discount_percent", 0)), "descuento_porcentaje": int(price.get("discount_percent", 0)),
         "comprobado_fuente": not detail_cached, "realmente_recotizado": price_fresh,
     }
-    game["incertidumbres"] = [x for x in game.get("incertidumbres", []) if "Precio no disponible" not in x]
     if amount is None and not any("precio" in x.casefold() for x in game["incertidumbres"]):
         game["incertidumbres"].append("Steam no devolvió un precio comprable para España en esta consulta.")
     total = review.get("total_reviews")
@@ -226,13 +229,32 @@ def update_game(game: dict, data: dict, review: dict, appid: int, today: str, de
 
 def classify(game: dict) -> None:
     meta = any(p.get("modo_quest", "").startswith("nativo") for p in game.get("plataformas", []))
-    steam = bool(game.get("steam_appid"))
-    game["clasificacion_plataforma"] = "ambos" if meta and steam else "standalone" if meta else "solo_pcvr"
+    steam = bool(game.get("steam_appid")) or any(
+        p.get("modo_quest", "").startswith("streaming_desde_pc")
+        for p in game.get("plataformas", [])
+    )
+    value = "ambos" if meta and steam else "standalone" if meta else "pcvr" if steam else "desconocido"
+    game["tipo_plataforma"] = value
+    # Alias temporal para no romper consumidores del esquema 1.x.
+    game["clasificacion_plataforma"] = value
     if meta and not steam:
         game["vr_modo"] = "obligatorio"
+        game["vr_obligatorio"] = True
+        game.setdefault("coop_online", "desconocido")
+        game.setdefault("coop_local", "desconocido")
         game["dato_precio"] = "captura_meta_2026-06-06"
+        price = game.setdefault("precio_actual", {})
+        price.update({
+            "comprobado_fuente": False,
+            "realmente_recotizado": False,
+            "nota": "Precio no verificado (captura 06/06/2026, USD).",
+        })
     elif steam:
         game["dato_precio"] = "steam_actual" if game.get("precio_actual", {}).get("realmente_recotizado") else "steam_cache"
+    else:
+        game.setdefault("vr_obligatorio", "desconocido")
+        game.setdefault("coop_online", "desconocido")
+        game.setdefault("coop_local", "desconocido")
 
 
 def run(args: argparse.Namespace) -> dict:
@@ -242,6 +264,17 @@ def run(args: argparse.Namespace) -> dict:
     client = Client(args.delay, args.max_age_days, args.offline)
     candidates, search_reviews = enumerate_candidates(client)
     existing = {norm_title(g["nombre"]): g for g in before["juegos"]}
+    existing_by_appid: dict[int, dict] = {}
+    for game in before["juegos"]:
+        appid = game.get("steam_appid")
+        if not appid:
+            for platform in game.get("plataformas", []):
+                match = re.search(r"steampowered\.com/app/(\d+)", platform.get("url", ""))
+                if match:
+                    appid = int(match.group(1))
+                    break
+        if appid:
+            existing_by_appid[int(appid)] = game
     old_by_id = {g["id"]: g for g in before["juegos"]}
     passed_coop = passed_vr = 0
     refreshed: list[dict] = []
@@ -266,9 +299,10 @@ def run(args: argparse.Namespace) -> dict:
             else:
                 review, review_cached = reviews(client, appid)
             key = norm_title(data.get("name", ""))
-            game = existing.get(key) or new_game(data, appid)
+            game = existing_by_appid.get(appid) or existing.get(key) or new_game(data, appid)
             update_game(game, data, review, appid, date.today().isoformat(), detail_cached, review_cached)
             existing[key] = game
+            existing_by_appid[appid] = game
             refreshed.append(game)
         except Exception:
             failed_appids.append(appid)
@@ -276,7 +310,19 @@ def run(args: argparse.Namespace) -> dict:
             print(json.dumps({"examined": pos, "total_candidates": len(candidates), "accepted": len(refreshed), "failed": len(failed_appids)}), flush=True)
     refreshed_ids = {g["steam_appid"] for g in refreshed}
     games = []
+    seen_objects: set[int] = set()
+    seen_appids: set[int] = set()
+    seen_names: set[str] = set()
     for game in existing.values():
+        object_id = id(game)
+        appid = game.get("steam_appid")
+        name_key = norm_title(game["nombre"])
+        if object_id in seen_objects or (appid and appid in seen_appids) or name_key in seen_names:
+            continue
+        seen_objects.add(object_id)
+        if appid:
+            seen_appids.add(appid)
+        seen_names.add(name_key)
         if game.get("steam_appid") and game["steam_appid"] not in refreshed_ids:
             game["actualizacion_steam"] = "no_actualizado"
         classify(game)
@@ -302,11 +348,12 @@ def run(args: argparse.Namespace) -> dict:
         "pasaron_coop": passed_coop, "pasaron_vr": passed_vr, "juegos_steam_actualizados": len(refreshed),
         "fallos": len(failed_appids), "appids_fallidos": failed_appids,
         "peticiones_red": client.network_requests, "total_final": len(games),
-        "standalone": sum(g["clasificacion_plataforma"] == "standalone" for g in games),
-        "solo_pcvr": sum(g["clasificacion_plataforma"] == "solo_pcvr" for g in games),
-        "ambos": sum(g["clasificacion_plataforma"] == "ambos" for g in games),
+        "standalone": sum(g["tipo_plataforma"] == "standalone" for g in games),
+        "pcvr": sum(g["tipo_plataforma"] == "pcvr" for g in games),
+        "ambos": sum(g["tipo_plataforma"] == "ambos" for g in games),
+        "desconocido": sum(g["tipo_plataforma"] == "desconocido" for g in games),
         "precios_eur_recotizados": sum(g.get("precio_actual", {}).get("moneda") == "EUR" and g.get("precio_actual", {}).get("realmente_recotizado") for g in games),
-        "fichas_steam_comprobadas_hoy": sum(g.get("precio_actual", {}).get("comprobado_fuente") for g in games),
+        "fichas_steam_comprobadas_hoy": sum(bool(g.get("precio_actual", {}).get("comprobado_fuente")) for g in games),
         "precios_eur_disponibles": sum(g.get("precio_actual", {}).get("moneda") == "EUR" and g.get("precio_actual", {}).get("importe") is not None for g in games),
         "precios_meta_captura": sum(g.get("dato_precio") == "captura_meta_2026-06-06" for g in games),
     }

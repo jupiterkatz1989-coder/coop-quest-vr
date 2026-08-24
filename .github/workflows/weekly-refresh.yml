@@ -7,28 +7,41 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: coop-quest-vr-pages
+  cancel-in-progress: false
 
 jobs:
   refresh:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: pnpm
       - uses: actions/cache@v4
         with:
           path: data/steam_cache
           key: steam-cache-${{ github.run_id }}
           restore-keys: steam-cache-
-      - name: Instalar dependencias
-        run: npm install --ignore-scripts
+      - name: Instalar dependencias reproducibles
+        run: pnpm install --frozen-lockfile
       - name: Consultar Steam (España) con ritmo limitado
         run: python3 tools/steam_catalog.py --delay 1.05 --max-age-days 6
       - name: Validar catálogo antes de publicar
-        run: npm run verify:data
+        run: pnpm run verify:data
       - name: Compilar sitio
-        run: npm run build
+        run: pnpm run build
       - name: Guardar dataset e informe de cambios
         run: |
           git config user.name "jupi-coopquest-bot"
@@ -36,3 +49,10 @@ jobs:
           git add src/data/games.json data/steam_refresh_report.json data/steam_changes.json
           git diff --cached --quiet || git commit -m "data: refresco semanal Steam"
           git push
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - name: Desplegar el catálogo recién refrescado
+        id: deployment
+        uses: actions/deploy-pages@v4
