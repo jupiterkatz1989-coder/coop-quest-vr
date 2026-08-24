@@ -11,7 +11,7 @@ await page.goto(url,{waitUntil:'networkidle'});await page.getByText(/experiencia
 const totalText=await page.getByText(/experiencias cooperativas/).textContent()
 const initialCards=await page.locator('.card').count(),desktopOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth)
 await page.screenshot({path:path.join(shots,'public-desktop.png'),fullPage:true})
-await page.locator('label:has-text("Plataforma") select').selectOption('solo_pcvr')
+await page.locator('label:has-text("Tipo de plataforma") select').selectOption('pcvr')
 await page.locator('label:has-text("Reseñas mínimas") select').selectOption('100')
 const filteredText=await page.locator('.result-bar strong').textContent()
 await page.getByRole('button',{name:'Limpiar'}).click();await page.locator('.card-main').first().click();await page.getByRole('dialog').waitFor();await page.getByRole('button',{name:'Cerrar'}).click()
