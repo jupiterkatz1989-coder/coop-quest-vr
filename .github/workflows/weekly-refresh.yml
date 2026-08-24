@@ -38,6 +38,8 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Consultar Steam (España) con ritmo limitado
         run: python3 tools/steam_catalog.py --delay 1.05 --max-age-days 6
+      - name: Descargar portadas de los juegos nuevos
+        run: python3 tools/fetch_covers.py
       - name: Validar catálogo antes de publicar
         run: pnpm run verify:data
       - name: Compilar sitio
@@ -46,8 +48,9 @@ jobs:
         run: |
           git config user.name "jupi-coopquest-bot"
           git config user.email "actions@example.com"
-          git add src/data/games.json data/steam_refresh_report.json data/steam_changes.json
+          git add src/data/games.json src/data/covers.json public/covers data/steam_refresh_report.json data/steam_changes.json data/cover_report.json
           git diff --cached --quiet || git commit -m "data: refresco semanal Steam"
+          git pull --rebase --autostash
           git push
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
