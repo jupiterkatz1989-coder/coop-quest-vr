@@ -1,0 +1,38 @@
+name: Refresco semanal Steam
+
+on:
+  schedule:
+    - cron: '17 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/cache@v4
+        with:
+          path: data/steam_cache
+          key: steam-cache-${{ github.run_id }}
+          restore-keys: steam-cache-
+      - name: Instalar dependencias
+        run: npm install --ignore-scripts
+      - name: Consultar Steam (España) con ritmo limitado
+        run: python3 tools/steam_catalog.py --delay 1.05 --max-age-days 6
+      - name: Validar catálogo antes de publicar
+        run: npm run verify:data
+      - name: Compilar sitio
+        run: npm run build
+      - name: Guardar dataset e informe de cambios
+        run: |
+          git config user.name "jupi-coopquest-bot"
+          git config user.email "actions@example.com"
+          git add src/data/games.json data/steam_refresh_report.json data/steam_changes.json
+          git diff --cached --quiet || git commit -m "data: refresco semanal Steam"
+          git push

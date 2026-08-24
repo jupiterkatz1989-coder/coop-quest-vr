@@ -1,0 +1,17 @@
+node_modules/
+dist/
+dist.next/
+last_valid_dist/
+data/steam_cache/
+data/refresh.lock
+data/games.before-refresh.json
+screenshots/
+rollback/
+deliverables/
+coop-quest-vr.service
+data/cover_report.json
+data/refresh_state.json
+__pycache__/
+*.pyc
+*.log
+.env*
