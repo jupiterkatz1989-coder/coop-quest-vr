@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.0 — 2026-08-25
+
+- Portadas recuperadas desde la ruta de assets con hash que Steam usa en las fichas recientes: 861 de 862 juegos con imagen real (antes 776).
+- Orden por defecto «Recomendado» con nota ponderada por volumen de reseñas; «Nota» sigue disponible como opción explícita.
+- El refresco semanal descarga las portadas de los juegos nuevos y reintegra antes de publicar; primera ejecución real verificada de extremo a extremo.
+
 ## 2.0.0 — 2026-08-24
 
 - Descubrimiento reanudable de Steam VR cooperativo mediante las categorías oficiales Co-op, Online Co-op, Shared/Split Screen Co-op y LAN Co-op, caché y ritmo limitado.
