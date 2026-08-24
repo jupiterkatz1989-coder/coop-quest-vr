@@ -48,7 +48,7 @@ jobs:
         run: |
           git config user.name "jupi-coopquest-bot"
           git config user.email "actions@example.com"
-          git add src/data/games.json src/data/covers.json public/covers data/steam_refresh_report.json data/steam_changes.json data/cover_report.json
+          git add src/data/games.json src/data/covers.json public/covers data/steam_refresh_report.json data/steam_changes.json
           git diff --cached --quiet || git commit -m "data: refresco semanal Steam"
           git pull --rebase --autostash
           git push
