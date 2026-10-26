@@ -1,13 +1,17 @@
 {
-  "generado_el": "2026-10-19T11:18:27.037328+00:00",
-  "altas": [
-    "ashburrow",
-    "atlas-proxima-tether",
-    "battlebuild",
-    "domino",
-    "im-not-an-idiot"
-  ],
+  "generado_el": "2026-10-26T11:18:36.737863+00:00",
+  "altas": [],
   "bajas": [],
   "precios": [],
-  "no_actualizados": []
+  "no_actualizados": [
+    3719480,
+    4210340,
+    5282270,
+    5289710,
+    5415860,
+    5464620,
+    5464850,
+    5466100,
+    5481170
+  ]
 }
